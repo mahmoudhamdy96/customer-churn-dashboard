@@ -33,3 +33,60 @@ Why do customers leave, and what early-warning signals can the company act on?
 1. Cleaned and prepared the data in Power Query.
 2. Wrote DAX measures for churn rate and lost revenue.
 3. Applied conditional formatting and cross-filtering for a better user experience.
+
+
+## Key DAX measures
+
+`Account Length in Years`, `Account Length Group` and `Total Revenue` are calculated columns. The rest are measures.
+
+> **Assumptions:** `Account length` is treated as months, so dividing by 12 gives years. `Total Revenue` is the sum of the day, evening, night and international charges, so `Lost Revenue` is the total charges of customers who churned.
+
+```dax
+-- Calculated columns
+Account Length in Years =
+ROUNDUP('Customer Retention Hub'[Account length] / 12, 0)
+
+Account Length Group =
+VAR YearsVal = 'Customer Retention Hub'[Account Length in Years]
+RETURN
+    SWITCH(
+        TRUE(),
+        YearsVal < 5, "0-4",
+        YearsVal < 10, "5-9",
+        YearsVal < 15, "10-14",
+        YearsVal < 20, "15-19",
+        "20+"
+    )
+
+Total Revenue =
+'Customer Retention Hub'[Total day charge] +
+'Customer Retention Hub'[Total eve charge] +
+'Customer Retention Hub'[Total night charge] +
+'Customer Retention Hub'[Total intl charge]
+
+-- Measures
+total customers = COUNTROWS('Customer Retention Hub')
+
+Churned Customers =
+CALCULATE(
+    COUNTROWS('Customer Retention Hub'),
+    'Customer Retention Hub'[Churn] = TRUE
+)
+
+churn rate =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS('Customer Retention Hub'),
+        'Customer Retention Hub'[Churn] = TRUE
+    ),
+    [total customers],
+    0
+)
+
+-- Revenue from customers who churned
+Lost Revenue =
+CALCULATE(
+    SUM('Customer Retention Hub'[Total Revenue]),
+    'Customer Retention Hub'[Churn] = TRUE
+)
+```
